@@ -1,0 +1,42 @@
+name: Build iSH-AOK from ZIP
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip source
+        run: unzip "ish-AOK-508.zip"
+
+      - name: Move files to root
+        run: mv -f iSH-AOK-main/* . && rm -rf iSH-AOK-main
+
+      - name: Install deps
+        run: brew install meson ninja llvm
+
+      - name: Get submodules
+        run: git submodule update --init --recursive
+
+      - name: Build lib
+        run: |
+          meson build
+          cd build
+          ninja
+          cd ..
+
+      - name: Build app
+        run: xcodebuild -project ish-AOK.xcodeproj -scheme ish-AOK -configuration Release -derivedDataPath build
+
+      - name: Make IPA
+        run: |
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/ish-AOK.app Payload/
+          zip -r iSH-AOK.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iSH-AOK.ipa
+          path: iSH-AOK.ipa
